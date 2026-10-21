@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Video</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.4rem; }
+    form { display: grid; gap: 10px; margin-bottom: 24px; }
+    input, button { font: inherit; padding: 8px; }
+    button { cursor: pointer; }
+    .row { display: flex; gap: 8px; }
+    .msg { min-height: 1.2em; color: #b00020; }
+    .msg.ok { color: #1b7a1b; }
+    progress { width: 100%; }
+    li { margin: 4px 0; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Upload Video</h1>
+
+  <section id="login-view" class="hidden">
+    <form id="login-form">
+      <input name="username" placeholder="Username" required>
+      <input name="password" type="password" placeholder="Password" required>
+      <div class="row">
+        <button type="submit">Log in</button>
+        <button type="button" id="register-btn">Register</button>
+      </div>
+      <div class="msg" id="login-msg"></div>
+    </form>
+  </section>
+
+  <section id="upload-view" class="hidden">
+    <p>Logged in as <b id="who"></b> <button id="logout-btn">Log out</button></p>
+    <form id="upload-form">
+      <input name="title" placeholder="Title" maxlength="120" required>
+      <input name="video" type="file" accept="video/*" required>
+      <button type="submit">Upload</button>
+      <progress id="progress" value="0" max="100" class="hidden"></progress>
+      <div class="msg" id="upload-msg"></div>
+    </form>
+    <h2>Your uploads</h2>
+    <ul id="videos"></ul>
+  </section>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function show(view) {
+      $('login-view').classList.toggle('hidden', view !== 'login');
+      $('upload-view').classList.toggle('hidden', view !== 'upload');
+    }
+
+    function message(el, text, ok = false) {
+      el.textContent = text;
+      el.classList.toggle('ok', ok);
+    }
+
+    async function api(path, options = {}) {
+      const r = await fetch(path, { headers: { 'content-type': 'application/json' }, ...options });
+      const data = r.status === 204 ? {} : await r.json();
+      return { ok: r.ok, data };
+    }
+
+    async function loadVideos() {
+      const { ok, data } = await api('/api/videos');
+      const list = $('videos');
+      list.replaceChildren();
+      if (!ok) return;
+      for (const v of data) {
+        const li = document.createElement('li');
+        // textContent, never innerHTML: a title like <script> stays plain text
+        li.textContent = `${v.title} (${(v.size / 1048576).toFixed(1)} MB)`;
+        list.append(li);
+      }
+      if (!data.length) list.textContent = 'Nothing uploaded yet.';
+    }
+
+    async function start() {
+      const { ok, data } = await api('/api/me');
+      if (!ok) return show('login');
+      $('who').textContent = data.username;
+      show('upload');
+      loadVideos();
+    }
+
+    function credentials() {
+      const f = new FormData($('login-form'));
+      return JSON.stringify({ username: f.get('username'), password: f.get('password') });
+    }
+
+    $('login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const { ok, data } = await api('/api/login', { method: 'POST', body: credentials() });
+      if (!ok) return message($('login-msg'), data.error);
+      message($('login-msg'), '');
+      start();
+    };
+
+    $('register-btn').onclick = async () => {
+      const { ok, data } = await api('/api/register', { method: 'POST', body: credentials() });
+      message($('login-msg'), ok ? 'Account created, now log in.' : data.error, ok);
+    };
+
+    $('logout-btn').onclick = async () => {
+      await api('/api/logout', { method: 'POST' });
+      show('login');
+    };
+
+    // XMLHttpRequest instead of fetch, because it reports upload progress
+    $('upload-form').onsubmit = (e) => {
+      e.preventDefault();
+      const xhr = new XMLHttpRequest();
+      const bar = $('progress');
+      bar.classList.remove('hidden');
+      xhr.upload.onprogress = (p) => { if (p.lengthComputable) bar.value = (p.loaded / p.total) * 100; };
+      xhr.onload = () => {
+        bar.classList.add('hidden');
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status === 201) {
+          message($('upload-msg'), `Uploaded "${data.title}".`, true);
+          $('upload-form').reset();
+          loadVideos();
+        } else {
+          message($('upload-msg'), data.error ?? 'Upload failed.');
+          if (xhr.status === 401) start();
+        }
+      };
+      xhr.onerror = () => { bar.classList.add('hidden'); message($('upload-msg'), 'Network error.'); };
+      xhr.open('POST', '/api/upload');
+      xhr.send(new FormData($('upload-form')));
+    };
+
+    start();
+  </script>
+</body>
+</html>

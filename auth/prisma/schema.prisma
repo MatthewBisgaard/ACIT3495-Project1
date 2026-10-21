@@ -13,4 +13,16 @@ model User {
   username  String   @unique @db.VarChar(32)
   password  String   @db.VarChar(100) // bcrypt hash, never the plain password
   createdAt DateTime @default(now())
+  video     Video[]
+}
+
+model Video {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(120)
+  storageKey  String    @unique @db.Char(36) // UUID filename in the storage service  
+  mimeType    String    @db.VarChar(50)
+  size        Int // bytes
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
 }
