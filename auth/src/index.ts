@@ -2,6 +2,7 @@ import express from 'express';
 import routes from './routes.js';
 
 const app = express();
+app.disable('x-powered-by');
 app.use(express.json());
 app.use(routes);
 
