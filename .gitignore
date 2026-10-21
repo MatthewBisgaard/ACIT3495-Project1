@@ -4,7 +4,12 @@ __pycache__
 
 # JavaScript
 node_modules
+dist
+src/generated
 
 # Generic
 *.db
 *.log
+
+# Secrets
+.env
