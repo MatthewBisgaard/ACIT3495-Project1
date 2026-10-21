@@ -1,9 +1,4 @@
 node_modules
-npm-debug.log
-.git
+dist
+src/generated
 .env
-*.pem
-Dockerfile
-.dockerignore
-README.md
-coverage
