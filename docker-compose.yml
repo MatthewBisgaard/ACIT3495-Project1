@@ -25,12 +25,12 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "3001:3000"   # only so we can test with curl for now; removed once the web apps exist
+      - "3001:3000"   # testing only, removed at the end
     networks: [backend]
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256m }
-  
+
   storage:
     build: ./storage
     environment:
@@ -41,13 +41,32 @@ services:
       auth:
         condition: service_healthy
     ports:
-      - "3002:3000"   # testing only, removed once the web apps exist
+      - "3002:3000"   # testing only, removed at the end
     networks: [backend]
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256m }
 
+  video_upload:
+    build: ./video_upload
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/videodb
+      AUTH_URL: http://auth:3000
+      STORAGE_URL: http://storage:3000
+    depends_on:
+      auth:
+        condition: service_healthy    # auth creates the tables, so wait for it
+      storage:
+        condition: service_healthy
+    ports:
+      - "8080:3000"   # the upload web app, open http://localhost:8080
+    networks: [frontend, backend]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
 networks:
+  frontend:
   backend:
 
 volumes:
