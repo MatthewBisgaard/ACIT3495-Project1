@@ -30,9 +30,26 @@ services:
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256m }
+  
+  storage:
+    build: ./storage
+    environment:
+      AUTH_URL: http://auth:3000
+    volumes:
+      - videos_data:/data/videos          # videos survive container recreation
+    depends_on:
+      auth:
+        condition: service_healthy
+    ports:
+      - "3002:3000"   # testing only, removed once the web apps exist
+    networks: [backend]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
 
 networks:
   backend:
 
 volumes:
   mysql_data:
+  videos_data:
