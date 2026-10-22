@@ -64,7 +64,29 @@ services:
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256m }
-
+  video-streaming:
+    build: ./video_streaming
+    environment:
+      MYSQL_CONNECTOR_STRING: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/videodb
+      DATABASE_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      DATABASE_SCHEMA: videodb
+      AUTH_URL: http://auth:3000
+      STORAGE_URL: http://storage:3000
+    depends_on:
+      auth:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    ports:
+      - 8081:3000
+    networks: 
+      - frontend
+      - backend
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
 networks:
   frontend:
   backend:
