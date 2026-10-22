@@ -12,6 +12,7 @@ const app = express();
 
 app.set("view engine", "ejs"); 
 app.use(express.urlencoded());
+app.disable('x-powered-by');
 app.use(express.static("static")); 
 app.use(cookieParser());
 
