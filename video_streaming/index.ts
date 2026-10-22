@@ -3,33 +3,21 @@ import session from "express-session";
 import http from 'http';
 import { createReadStream, statSync } from "node:fs";
 import cookieParser from 'cookie-parser';
-import { requiresAuth, loginMiddleware } from './helper/auth';
-import { dbcon, queryDatabase } from "./helper/db";
+import { requiresAuth, loginMiddleware, signupMiddleware } from './helper/auth';
+import { queryDatabase } from "./helper/db";
+
+const storageURL = process.env.STORAGE_URL ?? 'http://storage:3000'
 
 const app = express();
 
+app.set("view engine", "ejs"); 
+app.use(express.urlencoded())
 app.use(cookieParser());
 
-// app.use(session({
-//     store: new SqliteStore({
-//         client: db,
-//         expired: {
-//             clear: true,
-//             intervalMs: 900000
-//         }
-//     }),
-//     secret: ""+process.env["sessionsecret"],
-//     resave: true,
-//     saveUninitialized: false, // MEans session data will only be saved if in use
-//     cookie: {
-//         httpOnly: true,
-//         secure: false,
-//         maxAge: 1000 * 60 * 60 * 3
-//     }
-// }))
-
-app.get("/", requiresAuth, (req, res) => {
-    res.render("home");
+app.get("/", requiresAuth, async (req, res) => {
+    const allVids = await queryDatabase("SELECT title, Video.id, Video.createdAt, User.username FROM Video LEFT JOIN User ON Video.userID = User.id", []);
+    console.log(allVids)
+    res.render("home", {allVids});
 })
 
 app.get("/login", (req, res) => {
@@ -40,46 +28,42 @@ app.post("/login", loginMiddleware, async (req, res) => {
     res.redirect("/");
 });
 
-app.get("/watch/:vidid", requiresAuth, async (req, res) => {
-    const videoId = req.params.videoId;
-    const currentVideo = await queryDatabase("SELECT * FROM Video WHERE id = ?", [])
-    if (currentVideo.length < 1){
-        res.send(404)
-    }
-    res.render("player", currentVideo[0]);
+app.post("/logout", async (req, res) => {
+    res.clearCookie('token');
+    res.redirect("/login");
 });
 
-const CHUNK_SIZE = 10 ** 6;
-app.get("/stream/:vidid", requiresAuth, async (req, res) => {
-    http.get(`http://storage:3000/files/${req.params.vidid}`, {
-        headers: req.headers
-    }, resStorage => {
-        resStorage.pipe(res)
+app.post("/signup", signupMiddleware)
+
+app.get("/watch/:videoId", requiresAuth, async (req, res) => {
+    const videoId = req.params.videoId;
+    const currentVideo = await queryDatabase("SELECT * FROM Video WHERE id = ?", [videoId])
+    console.log(currentVideo[0])
+    if (currentVideo.length > 0){
+        res.render("player", {currentVideo: currentVideo[0]});
+    }
+});
+
+app.get("/stream/:vidStorageKey", requiresAuth, async (req, res) => {
+    req.pause()
+    const storageKey = req.params.vidStorageKey;
+    // const currentVideo = await queryDatabase("SELECT * FROM Video WHERE id = ?", [])
+    const headers = req.headers;
+    headers['Range'] = req.headers.range;
+    headers['Authorization'] = `${req.cookies?.token}`
+
+    const clReq = http.get(`${storageURL}/files/${storageKey}`, {headers: headers}, async resStorage => {
+        resStorage.pause()
+        res.writeHead(resStorage.statusCode ?? 200, resStorage.headers)
+        resStorage.pipe(res, {end: true})
     });
+    req.pipe(clReq, {end: true})
 })
 
-/*
-router.get("/stream/:mediaFile", isAuthenticated, async (req, res) => {
-    try{
-        const range = req.headers.range;
-        const videopath = `assets/${req.params.mediaFile}`;
-        const videoSize = statSync(videopath).size;
-        const start = Number(range?.replace(/\D/g, ""));
-        const end = Math.min(start + CHUNK_SIZE, videoSize - 1 );
-        const contentLength = end - start + 1;
-        const headers = {
-            "Content-Range": `bytes ${start}-${end}/${videoSize}`,
-            "Accept-Ranges": "bytes",
-            "Content-Length": contentLength,
-            "Content-Type": "video/mp4"
-        }
-        res.writeHead(206, headers)
-        const stream = createReadStream(videopath, { start, end }) 
-        stream.pipe(res);
+app.get("/health", (req, res) => {
+    res.send("Up");
+})
 
-    }catch (err){
-        res.sendStatus(500)
-    }
-
+app.listen(process.env.PORT ?? 3000, () => {
+    console.log("Server Listening");
 });
-*/

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Library</title>
+</head>
+
+<body>
+    <nav><a href="/logout">logout</a></nav>
+    <ul>
+        <% for( video of allVids ) { %>
+            <li>
+                <a href="/watch/<%= video.id %>" title="<%= video.createdAt %>"><b><%= video.title %></b>| Created by <%= video.username %></a>
+            </li>
+        <% } %>
+    </ul>
+</body>
+
+</html>

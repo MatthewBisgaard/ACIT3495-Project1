@@ -5,10 +5,12 @@ const AUTH_URL = process.env.AUTH_URL ?? 'http://auth:3000';
 
 const checkAuthentication = async (userJWT: String) => {
     const res = await fetch(`${AUTH_URL}/verify`, {headers: {Authorization: `Bearer ${userJWT}`}});
+    console.log("Auth Checked")
     return res.status === 200;
 }
 
 const requiresAuth = async (req: Request, res: Response, next: NextFunction) => {
+    
     const userAuthToken: string | undefined = req.cookies?.token;
     if (userAuthToken){
         const userAuthorized = await checkAuthentication(userAuthToken);
@@ -47,8 +49,28 @@ const loginMiddleware = async (req: Request, res: Response, next: NextFunction) 
     }
 };
 
+const signupMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+    if (req.body.username === undefined || req.body.password === undefined) return res.redirect("/login");
+    const loginResult = await fetch(`${AUTH_URL}/register`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "username": req.body.username,
+            "password": req.body.password 
+        })
+    });
+    if (loginResult.status === 201){
+        loginMiddleware(req, res, next);
+    } else {
+        return res.redirect("/login");
+    }
+};
+
 
 export {
     requiresAuth,
-    loginMiddleware
+    loginMiddleware,
+    signupMiddleware
 }

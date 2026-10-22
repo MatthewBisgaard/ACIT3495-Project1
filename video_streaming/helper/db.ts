@@ -1,26 +1,22 @@
-import mysql from 'mysql'
+import mysql from 'mysql2/promise'
+import { QueryResult } from 'mysql2';
 import { error } from 'node:console';
 
-const dbcon = mysql.createConnection({
-    host: process.env.DATABASE_URL ?? 'db',
-    user: process.env.MYSQL_USER ?? 'app',
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.DATABSE_URL
-});
-
-const queryDatabase = (sql: string, parameters: any[]): => {
-    return new Promise((resolve, reject) => {
-        dbcon.connect( (err) => {
-            if (err) return reject(err);
-            dbcon.query(sql, parameters, (err, results) => {
-                if (err) return reject(err);
-                resolve(results);
-            });
+const queryDatabase = async (sql: string, parameters: any[]): Promise<any> => {
+    const dbcon = await mysql.createConnection({
+        host: process.env.DATABASE_HOST,
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_PASSWORD,
+        database: process.env.DATABASE_SCHEMA,
+        ssl: {
+            rejectUnauthorized: false
+        }
         });
-    });
+        const results = await dbcon.query(sql, parameters);
+        dbcon.end()
+        return results[0]
 };
 
 export {
-    dbcon,
     queryDatabase
 }
