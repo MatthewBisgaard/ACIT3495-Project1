@@ -45,6 +45,7 @@ const loginMiddleware = async (req: Request, res: Response, next: NextFunction) 
         })
         return next();
     } else {
+        res.cookie('problem', (await loginResult.json())['error'])
         return res.redirect("/login");
     }
 };

@@ -11,7 +11,8 @@ const storageURL = process.env.STORAGE_URL ?? 'http://storage:3000'
 const app = express();
 
 app.set("view engine", "ejs"); 
-app.use(express.urlencoded())
+app.use(express.urlencoded());
+app.use(express.static("static")); 
 app.use(cookieParser());
 
 app.get("/", requiresAuth, async (req, res) => {
@@ -21,14 +22,15 @@ app.get("/", requiresAuth, async (req, res) => {
 })
 
 app.get("/login", (req, res) => {
-    res.render("login");
+    const issue = req.cookies.problem ?? ''
+    res.render("login", {problem: issue});
 })
 
 app.post("/login", loginMiddleware, async (req, res) => {
     res.redirect("/");
 });
 
-app.post("/logout", async (req, res) => {
+app.get("/logout", async (req, res) => {
     res.clearCookie('token');
     res.redirect("/login");
 });

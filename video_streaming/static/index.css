@@ -1,0 +1,11 @@
+video{
+    width: 100vw;
+}
+
+section {
+    text-align: center;
+}
+
+.problems {
+    color: red;
+}
