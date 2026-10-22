@@ -74,6 +74,11 @@ services:
       DATABASE_SCHEMA: videodb
       AUTH_URL: http://auth:3000
       STORAGE_URL: http://storage:3000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
     depends_on:
       auth:
         condition: service_healthy
